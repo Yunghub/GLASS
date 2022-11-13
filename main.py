@@ -30,6 +30,10 @@ def start():
 app = FastAPI()
 start()
 
+
+def hash(data):
+    return hashlib.sha256(data.encode('utf-8')).hexdigest()
+
 # Try connect to the database
 try:
     db = mysql.connector.connect(
@@ -67,7 +71,7 @@ print ("[ GLASS ] Successfully created / read the accounts table")
 try:
     # Default Admin User
     query = "INSERT INTO accounts (username, password, firstname, lastname, email, phone, student, parent, teacher, admin) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-    val = (hash("Admin"), hash(config["Admin Password"]), config["Admin Firstname"], config["Admin Lastname"], config["Admin Email"], config["Admin Phone"], False, False, False, True)
+    val = (hash("admin"), hash(config["Admin Password"]), config["Admin Firstname"], config["Admin Lastname"], config["Admin Email"], config["Admin Phone"], False, False, False, True)
     cursor.execute(query,val)
     db.commit()
 except mysql.connector.IntegrityError as e:
@@ -89,8 +93,6 @@ query = """
 cursor.execute(query)
 print ("[ GLASS ] Successfully created / read the Invite Codes table")
 
-def hash(data):
-    return hashlib.sha256(data.encode('utf-8')).hexdigest()
 
 @app.get("/")
 def read_root():
@@ -181,19 +183,61 @@ def remove_code_code(username: str, password: str, invite_code:str):
     except TypeError:
         return {"Account does not Exist"}
 
-    
-    
-@app.get("/get_ids")
-def read_ids():
-    query = "SELECT * FROM accounts"
-    cursor.execute(query)
-    result = cursor.fetchall()
-    for row in result:
-    	print(row, '\n')
+@app.get("/admin/{username}:{password}/get_accounts")
+def get_accounts(username: str, password: str):
+    userhash = hash(username)
+    passhash = hash(password)
+    cursor.execute("SELECT * FROM accounts WHERE username = %s", (userhash,))
+    account = cursor.fetchone()
+    try:
+        if account[1] == passhash and account[9] == True:
+            try:
+                query = "SELECT * FROM accounts"
+                cursor.execute(query)
+                result = cursor.fetchall()
+                return {str(result)}
+            except Exception as e:
+                print (e)
+        else:
+            return {"Failed Attempt"}
+    except TypeError:
+        return {"Account does not Exist"}
 
-@app.get("/clear_ids")
-def clear_ids():
-    query = "TRUNCATE TABLE accounts"
-    cursor.execute(query)
-    return {"Successful": "Done"}
+@app.get("/admin/{username}:{password}/clear_accounts")
+def clear_accounts(username: str, password: str):
+    userhash = hash(username)
+    passhash = hash(password)
+    cursor.execute("SELECT * FROM accounts WHERE username = %s", (userhash,))
+    account = cursor.fetchone()
+    try:
+        if account[1] == passhash and account[9] == True:
+            try:
+                cursor.execute("TRUNCATE TABLE accounts")
+                db.commit()
+                return {"Truncated Accounts"}
+            except Exception as e:
+                print (e)
+        else:
+            return {"Failed Attempt"}
+    except TypeError:
+        return {"Account does not Exist"}
+    
+@app.get("/admin/{username}:{password}/clear_invites")
+def clear_invites(username: str, password: str):
+    userhash = hash(username)
+    passhash = hash(password)
+    cursor.execute("SELECT * FROM accounts WHERE username = %s", (userhash,))
+    account = cursor.fetchone()
+    try:
+        if account[1] == passhash and account[9] == True:
+            try:
+                cursor.execute("TRUNCATE TABLE inviteCodes")
+                db.commit()
+                return {"Truncated Accounts"}
+            except Exception as e:
+                print (e)
+        else:
+            return {"Failed Attempt"}
+    except TypeError:
+        return {"Account does not Exist"}
 
