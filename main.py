@@ -162,6 +162,27 @@ def add_code(code: str, username:str, password:str, firstname:str, lastname:str,
     except TypeError:
         return {"Account does not Exist"}
 
+@app.get("/admin/{username}:{password}/invite_codes/remove/{invite_code}")
+def remove_code_code(username: str, password: str, invite_code:str):
+    userhash = hash(username)
+    passhash = hash(password)
+    cursor.execute("SELECT * FROM accounts WHERE username = %s", (userhash,))
+    account = cursor.fetchone()
+    try:
+        if account[1] == passhash and account[9] == True:
+            try:
+                cursor.execute("DELETE FROM inviteCodes WHERE code = %s", (invite_code,))
+                db.commit()
+                return {"Removed Code"}
+            except Exception as e:
+                print (e)
+        else:
+            return {"Failed Attempt"}
+    except TypeError:
+        return {"Account does not Exist"}
+
+    
+    
 @app.get("/get_ids")
 def read_ids():
     query = "SELECT * FROM accounts"
