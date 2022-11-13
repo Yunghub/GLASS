@@ -28,6 +28,7 @@ Add badges from somewhere like: [shields.io](https://shields.io/)
 
 ## Facial Recognition Client
 - OpenCV Facial Recognition
+- Commiting Change to DB
 
 ## License
 
