@@ -2,6 +2,7 @@ import os
 import hashlib
 import uuid
 import json
+from datetime import datetime
 
 from fastapi import FastAPI
 
@@ -45,7 +46,7 @@ try:
     cursor = db.cursor()
     print ("[ GLASS ] Successfully connected to the Database")
         
-except Error as e:
+except Exception as e:
     print(e)
     
 # Query to make the accounts table
@@ -92,6 +93,19 @@ query = """
     """
 cursor.execute(query)
 print ("[ GLASS ] Successfully created / read the Invite Codes table")
+
+#Add default LessonID table
+query = """
+    CREATE TABLE IF NOT EXISTS `LessonID` (
+  	`ID` VARCHAR(128) NOT NULL,
+    `teacherID` JSON NOT NULL,
+    `studentID` JSON NOT NULL,
+    `date` DATETIME NOT NULL,
+    PRIMARY KEY (`ID`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+    """
+cursor.execute(query)
+print ("[ GLASS ] Successfully created / read the LessonID table")
 
 
 @app.get("/")
@@ -241,3 +255,52 @@ def clear_invites(username: str, password: str):
     except TypeError:
         return {"Account does not Exist"}
 
+@app.get("/admin/{username}:{password}/timetables/add/{lesson_id}:{teacher_ids}:{student_ids}:{datetime}")
+def add_timetable(username: str, password: str, lesson_id:str, teacher_ids:str, student_ids:str, datetime:str):
+    userhash = hash(username)
+    passhash = hash(password)
+    cursor.execute("SELECT * FROM accounts WHERE username = %s", (userhash,))
+    account = cursor.fetchone()
+    try:
+        if account[1] == passhash and account[9] == True:
+            try:
+                teacher_list = splitStringToList(teacher_ids)
+                student_list = splitStringToList(student_ids)
+                datetime = changeStringToDatetime(datetime)
+                query = "INSERT INTO inviteCodes (ID, teacherID, studentID, date) VALUES (%s, %s, %s, %s)"
+                val = (lesson_id, teacher_list, student_list, datetime)
+                cursor.execute(query,val)
+                db.commit()
+                return {"Successful, added!"}
+            except mysql.connector.IntegrityError as e:
+                return {"Code Already Exists"}
+        else:
+            return {"Failed Attempt"}
+    except TypeError:
+        return {"Account does not Exist"}
+
+@app.get("/admin/{username}:{password}/timetables/remove/{lesson_id}")
+def remove_timetable(username: str, password: str, lesson_id:str):
+    userhash = hash(username)
+    passhash = hash(password)
+    cursor.execute("SELECT * FROM accounts WHERE username = %s", (userhash,))
+    account = cursor.fetchone()
+    try:
+        if account[1] == passhash and account[9] == True:
+            try:
+                cursor.execute("DELETE FROM inviteCodes WHERE ID = %s", (lesson_id,))
+                db.commit()
+                return {"Removed Code"}
+            except Exception as e:
+                print (e)
+        else:
+            return {"Failed Attempt"}
+    except TypeError:
+        return {"Account does not Exist"}
+
+
+async def splitStringToList(string):
+    return string.split(",")
+
+def convertListToJSON(list):
+    return json.dumps(list)
